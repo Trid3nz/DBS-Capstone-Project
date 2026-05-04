@@ -1,0 +1,13 @@
+tensorflow
+opencv-python
+Pillow
+albumentations
+numpy
+pandas
+scikit-learn
+matplotlib
+seaborn
+tensorboard
+tqdm
+onnx
+tf2onnx
