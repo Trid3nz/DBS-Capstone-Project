@@ -11,3 +11,5 @@ tensorboard
 tqdm
 onnx
 tf2onnx
+Flask
+Flask-Cors
