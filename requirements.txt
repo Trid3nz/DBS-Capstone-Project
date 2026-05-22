@@ -13,3 +13,6 @@ onnx
 tf2onnx
 Flask
 Flask-Cors
+fastapi
+uvicorn
+python-multipart
