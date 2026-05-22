@@ -16,3 +16,4 @@ Flask-Cors
 fastapi
 uvicorn
 python-multipart
+ultralytics
