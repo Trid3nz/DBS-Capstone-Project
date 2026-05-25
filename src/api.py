@@ -11,11 +11,11 @@ from ultralytics import YOLO
 app = FastAPI(title="Advanced Fruit Detection & Classification API")
 
 # 1. Load Models on startup
-CLASSIFIER_PATH = os.path.join(os.path.dirname(__file__), 'best_mobilenet_model.keras')
+CLASSIFIER_PATH = os.path.join(os.path.dirname(__file__), 'Model/best_mobilenet_model.keras')
 classifier = tf.keras.models.load_model(CLASSIFIER_PATH)
 
 # Loading pre-trained YOLOv8 (6MB, auto-downloads on first load)
-detector = YOLO('Model/yolov8n.pt') 
+detector = YOLO(os.path.join(os.path.dirname(__file__), 'Model/yolo26n.pt')) 
 
 # Mappings
 COCO_FRUIT_MAP = {
