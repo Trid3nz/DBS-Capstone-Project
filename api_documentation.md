@@ -70,31 +70,47 @@ Analyzes an uploaded image and predicts the fruit type and condition (fresh or r
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `file` | `file` | Yes | The image file to analyze (JPEG, PNG, etc.). |
+| `return_image` | `boolean` | No (query) | If `true`, returns the JPEG image with bounding boxes and freshness labels drawn on it instead of JSON. Defaults to `false`. |
 
 #### Success Response (200 OK)
-Returns the classification of the fruit in Indonesian (`apel`, `pisang`, `jeruk`) and its condition (`segar`, `busuk`), along with confidence scores.
+Returns a list of all fruits detected in the image, along with their condition, confidence, and bounding boxes.
 
 ```json
 {
   "status": "success",
-  "data": {
-    "class": "apel",
-    "condition": "segar",
-    "confidence": 0.98543,
-    "original_class": "freshapples",
-    "probabilities": {
-      "freshapples": 0.98543,
-      "freshbanana": 0.00123,
-      "freshoranges": 0.00054,
-      "rottenapples": 0.01011,
-      "rottenbanana": 0.00012,
-      "rottenoranges": 0.00257
+  "fruits_detected": [
+    {
+      "id": 1,
+      "class": "apel",
+      "condition": "segar",
+      "confidence": 0.98543,
+      "box": [100, 150, 300, 400],
+      "notes": "Classification normal."
     }
+  ],
+  "summary": {
+    "total_detected": 1,
+    "segar": 1,
+    "busuk": 0
   }
 }
 ```
 
-#### Error Responses
+#### Fallback Behavior (No Fruits Detected by YOLO)
+If the YOLO detector fails to find any apples, bananas, or oranges, the API automatically falls back to classifying the **entire image** using the MobileNetV2 model.
+
+- If the fallback classifier is confident (**confidence >= 40%**), it returns a single fruit prediction with the bounding box set to the entire image coordinates `[0, 0, height, width]` and note `Classification normal (Fallback Mode).`.
+- If the fallback classifier is not confident (**confidence < 40%**), the API returns a `cannot_determine` status indicating the image content is unclear:
+  ```json
+  {
+    "status": "cannot_determine",
+    "message": "The model cannot confidently determine the fruit type or freshness from this image.",
+    "confidence": 0.2354,
+    "raw_prediction": "pisang (busuk)"
+  }
+  ```
+
+---
 
 **400 Bad Request** (Invalid File or Failed to Read)
 ```json
