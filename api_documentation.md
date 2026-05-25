@@ -7,6 +7,28 @@ When running locally: `http://127.0.0.1:8000` (or the port specified by your Uvi
 
 ---
 
+## Running Locally
+
+To run the API in a local development environment, follow these steps:
+
+1. **Install Dependencies:**
+   Ensure you have Python installed, then install the required packages from `requirements.txt`:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Start the Server:**
+   Run the FastAPI server using Uvicorn. From the root of the project directory (where `src` is located), execute:
+   ```bash
+   uvicorn src.api:app --reload --host 127.0.0.1 --port 8000
+   ```
+   The `--reload` flag enables auto-reloading during development.
+
+3. **Access the API:**
+   The API will be available at `http://127.0.0.1:8000`. You can also view the interactive Swagger UI documentation at `http://127.0.0.1:8000/docs`.
+
+---
+
 ## Endpoints
 
 ### 1. Health Check
