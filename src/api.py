@@ -15,7 +15,7 @@ CLASSIFIER_PATH = os.path.join(os.path.dirname(__file__), 'best_mobilenet_model.
 classifier = tf.keras.models.load_model(CLASSIFIER_PATH)
 
 # Loading pre-trained YOLOv8 (6MB, auto-downloads on first load)
-detector = YOLO('yolov8n.pt') 
+detector = YOLO('Model/yolov8n.pt') 
 
 # Mappings
 COCO_FRUIT_MAP = {

@@ -4,8 +4,8 @@ import numpy as np
 
 def evaluate():
     # 1. Setup paths
-    model_path = os.path.join(os.path.dirname(__file__), 'best_mobilenet_model.keras')
-    test_dir = r"D:\Coding Camp\New folder\Dataset"
+    model_path = os.path.join(os.path.dirname(__file__), 'Model/best_mobilenet_model.keras')
+    test_dir = r"D:\Coding Camp\New folder\Dataset\test"
     
     if not os.path.exists(test_dir):
         print(f"Error: Test directory not found at {test_dir}")
@@ -70,8 +70,49 @@ def evaluate():
     y_pred_classes = np.argmax(y_pred, axis=1)
     
     from sklearn.metrics import classification_report, confusion_matrix
+    report_str = classification_report(y_true, y_pred_classes, target_names=class_names)
+    report_dict = classification_report(y_true, y_pred_classes, target_names=class_names, output_dict=True)
+    conf_matrix = confusion_matrix(y_true, y_pred_classes)
+    
     print("\nClassification Report:")
-    print(classification_report(y_true, y_pred_classes, target_names=class_names))
+    print(report_str)
+    
+    # 5. Export Results
+    results_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'results')
+    os.makedirs(results_dir, exist_ok=True)
+    
+    # Save text report
+    report_txt_path = os.path.join(results_dir, 'evaluation_report.txt')
+    with open(report_txt_path, 'w') as f:
+        f.write("="*40 + "\n")
+        f.write("MODEL EVALUATION RESULTS\n")
+        f.write("="*40 + "\n")
+        f.write(f"Accuracy : {accuracy:.4f} (Target: >= 0.85)\n")
+        f.write(f"MAE      : {mae:.4f} (Target: <= 0.02)\n")
+        f.write("="*40 + "\n\n")
+        f.write("Classification Report:\n")
+        f.write(report_str + "\n\n")
+        f.write("Confusion Matrix:\n")
+        f.write(np.array2string(conf_matrix) + "\n")
+    
+    # Save structured JSON
+    import json
+    results_json_path = os.path.join(results_dir, 'evaluation_results.json')
+    json_data = {
+        "accuracy": float(accuracy),
+        "mae": float(mae),
+        "classification_report": report_dict,
+        "confusion_matrix": conf_matrix.tolist(),
+        "classes": class_names
+    }
+    with open(results_json_path, 'w') as f:
+        json.dump(json_data, f, indent=4)
+        
+    print("\n" + "-"*40)
+    print(f"Results exported successfully to:")
+    print(f" - {report_txt_path}")
+    print(f" - {results_json_path}")
+    print("-"*40)
 
 if __name__ == "__main__":
     evaluate()

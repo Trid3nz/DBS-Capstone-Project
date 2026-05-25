@@ -1,0 +1,29 @@
+========================================
+MODEL EVALUATION RESULTS
+========================================
+Accuracy : 0.9956 (Target: >= 0.85)
+MAE      : 0.0066 (Target: <= 0.02)
+========================================
+
+Classification Report:
+               precision    recall  f1-score   support
+
+  freshapples       0.99      1.00      1.00       314
+  freshbanana       1.00      1.00      1.00       294
+ freshoranges       1.00      0.99      0.99       278
+ rottenapples       0.99      0.99      0.99       442
+ rottenbanana       1.00      1.00      1.00       413
+rottenoranges       0.99      0.99      0.99       299
+
+     accuracy                           1.00      2040
+    macro avg       1.00      1.00      1.00      2040
+ weighted avg       1.00      1.00      1.00      2040
+
+
+Confusion Matrix:
+[[313   0   0   1   0   0]
+ [  0 294   0   0   0   0]
+ [  0   0 276   1   0   1]
+ [  2   0   0 439   0   1]
+ [  0   0   0   0 413   0]
+ [  0   0   1   2   0 296]]
