@@ -78,30 +78,18 @@ async def predict_multi_fruits(file: UploadFile = File(...), return_image: bool 
             
         # Normalize probabilities between segar & busuk
         total_prob = fresh_prob + rotten_prob
-        segar_conf = fresh_prob / total_prob if total_prob > 0 else 0
-        busuk_conf = rotten_prob / total_prob if total_prob > 0 else 0
+        segar_conf = fresh_prob / total_prob if total_prob > 0 else 0.0
+        busuk_conf = rotten_prob / total_prob if total_prob > 0 else 0.0
         
-        condition = "segar"
-        confidence = segar_conf
-        notes = "Classification normal."
-        
-        if segar_conf >= busuk_conf:
-            # Task 3: If segar confidence is below 60%, mark as busuk
-            if segar_conf < 0.60:
-                condition = "busuk"
-                confidence = busuk_conf # Or keep segar_conf and note override
-                notes = "Otomatis diubah menjadi busuk karena confidence segar di bawah 60%."
-        else:
-            condition = "busuk"
-            confidence = busuk_conf
+        condition = "segar" if segar_conf >= busuk_conf else "busuk"
 
         fruits_found.append({
             "id": idx + 1,
             "class": fruit_name,
             "condition": condition,
-            "confidence": float(confidence),
-            "box": [int(ymin), int(xmin), int(ymax), int(xmax)],
-            "notes": notes
+            "segar_confidence": float(segar_conf),
+            "busuk_confidence": float(busuk_conf),
+            "box": [int(ymin), int(xmin), int(ymax), int(xmax)]
         })
         
         # Draw bounding box and label if return_image is requested
@@ -111,7 +99,8 @@ async def predict_multi_fruits(file: UploadFile = File(...), return_image: bool 
             # Draw rectangle
             cv2.rectangle(img, (xmin, ymin), (xmax, ymax), color, 2)
             # Draw label text
-            label = f"{fruit_name} ({condition} {confidence:.0%})"
+            conf = segar_conf if condition == "segar" else busuk_conf
+            label = f"{fruit_name} ({condition} {conf:.0%})"
             cv2.putText(img, label, (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
             
     # If YOLO didn't detect any fruits, fallback to MobileNetV2 on the entire image
@@ -123,62 +112,47 @@ async def predict_multi_fruits(file: UploadFile = File(...), return_image: bool 
         
         # Predict freshness
         preds = classifier(img_tensor, training=False).numpy()[0]
-        predicted_idx = int(np.argmax(preds))
-        confidence = float(preds[predicted_idx])
-        original_class = CLASS_NAMES[predicted_idx]
         
-        # Mapping
-        MAP_INDONESIAN = {
-            'freshapples': {'class': 'apel', 'condition': 'segar'},
-            'freshbanana': {'class': 'pisang', 'condition': 'segar'},
-            'freshoranges': {'class': 'jeruk', 'condition': 'segar'},
-            'rottenapples': {'class': 'apel', 'condition': 'busuk'},
-            'rottenbanana': {'class': 'pisang', 'condition': 'busuk'},
-            'rottenoranges': {'class': 'jeruk', 'condition': 'busuk'},
-        }
+        # Sum fresh and rotten probabilities for each fruit category
+        apple_total = preds[0] + preds[3]
+        banana_total = preds[1] + preds[4]
+        orange_total = preds[2] + preds[5]
         
-        mapping = MAP_INDONESIAN.get(original_class, {'class': 'unknown', 'condition': 'unknown'})
-        fruit_name = mapping['class']
-        condition = mapping['condition']
+        # Find which fruit is predicted
+        totals = [apple_total, banana_total, orange_total]
+        fruit_idx = int(np.argmax(totals))
         
-        # If the model is not confident (spewing nonsense), return a message
-        if confidence < 0.40:
-            if return_image:
-                h, w, _ = img.shape
-                cv2.putText(img, "Cannot determine fruit type", (20, h // 2), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                _, encoded_img = cv2.imencode('.jpg', img)
-                return StreamingResponse(io.BytesIO(encoded_img.tobytes()), media_type="image/jpeg")
-            else:
-                return {
-                    "status": "cannot_determine",
-                    "message": "The model cannot confidently determine the fruit type or freshness from this image.",
-                    "confidence": confidence,
-                    "raw_prediction": f"{fruit_name} ({condition})"
-                }
+        fruit_names = ['apel', 'pisang', 'jeruk']
+        fruit_name = fruit_names[fruit_idx]
         
-        # Apply Task 3 threshold override to fallback prediction
-        notes = "Classification normal (Fallback Mode)."
-        if condition == "segar" and confidence < 0.60:
-            condition = "busuk"
-            # Get probability of the corresponding rotten class (fresh class index + 3)
-            rotten_idx = predicted_idx + 3
-            confidence = float(preds[rotten_idx])
-            notes = "Otomatis diubah menjadi busuk karena confidence segar di bawah 60% (Fallback Mode)."
+        if fruit_idx == 0:
+            fresh_prob, rotten_prob = preds[0], preds[3]
+        elif fruit_idx == 1:
+            fresh_prob, rotten_prob = preds[1], preds[4]
+        else:
+            fresh_prob, rotten_prob = preds[2], preds[5]
+            
+        total_prob = fresh_prob + rotten_prob
+        segar_conf = fresh_prob / total_prob if total_prob > 0 else 0.0
+        busuk_conf = rotten_prob / total_prob if total_prob > 0 else 0.0
+        
+        condition = "segar" if segar_conf >= busuk_conf else "busuk"
             
         fruits_found.append({
             "id": 1,
             "class": fruit_name,
             "condition": condition,
-            "confidence": confidence,
-            "box": [0, 0, int(img.shape[0]), int(img.shape[1])],
-            "notes": notes
+            "segar_confidence": float(segar_conf),
+            "busuk_confidence": float(busuk_conf),
+            "box": [0, 0, int(img.shape[0]), int(img.shape[1])]
         })
         
         if return_image:
             color = (0, 255, 0) if condition == "segar" else (0, 0, 255)
             # Draw border around the image
             cv2.rectangle(img, (0, 0), (img.shape[1], img.shape[0]), color, 4)
-            label = f"Fallback: {fruit_name} ({condition} {confidence:.0%})"
+            conf = segar_conf if condition == "segar" else busuk_conf
+            label = f"Fallback: {fruit_name} ({condition} {conf:.0%})"
             cv2.putText(img, label, (15, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
     if return_image:

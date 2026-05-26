@@ -79,19 +79,14 @@ Processes an uploaded image, runs YOLOv8 fruit detection, crops the detected fru
 
 ---
 
-### Business Rules & Threshold Logic
-
-The `/predict` endpoint implements strict quality control rules defined by domain requirements:
-
-> [!IMPORTANT]
-> **1. The 60% Freshness Confidence Rule:**
-> If MobileNetV2 predicts that a fruit is `segar` (fresh) but the confidence score is **below 60%** (`< 0.60`), the system automatically overrides the condition classification to `busuk` (rotten). The notes field will explicitly mention: `"Otomatis diubah menjadi busuk karena confidence segar di bawah 60%."` (or similar for fallback mode).
+### Business Rules & Threshold Logic (Backend Responsibility)
 
 > [!NOTE]
-> **2. YOLOv8 Fallback Classification:**
-> If YOLOv8 does not find any fruits, the API processes the **entire image** using the MobileNetV2 model.
-> * **Confidence >= 40%:** Returns a single fruit prediction with coordinates spanning the entire image size `[0, 0, height, width]` and notes marked as `"Classification normal (Fallback Mode)."`.
-> * **Confidence < 40%:** Returns a `"cannot_determine"` response, indicating the model is not confident enough to verify the image content.
+> The API focuses exclusively on object detection (YOLOv8) and raw feature classification (MobileNetV2). All business rules and custom threshold overrides—such as the **60% Freshness Confidence Rule** (auto-converting low-confidence `segar` items to `busuk`) or the **40% Fallback safety threshold**—are deferred to the main backend application. The API provides raw normalized confidence scores for both states to facilitate this.
+
+> [!IMPORTANT]
+> **YOLOv8 Fallback Classification:**
+> If YOLOv8 does not find any fruits, the API automatically classifies the **entire image** using the MobileNetV2 model. It returns a single fruit prediction spanning the entire image size `[0, 0, height, width]` with normalized `segar_confidence` and `busuk_confidence`, letting the backend handle any confidence limits.
 
 ---
 
@@ -107,30 +102,30 @@ When YOLOv8 successfully detects fruits and classifies their freshness:
       "id": 1,
       "class": "apel",
       "condition": "segar",
-      "confidence": 0.98543,
-      "box": [100, 150, 300, 400],
-      "notes": "Classification normal."
+      "segar_confidence": 0.98543,
+      "busuk_confidence": 0.01457,
+      "box": [100, 150, 300, 400]
     },
     {
       "id": 2,
       "class": "pisang",
-      "condition": "busuk",
-      "confidence": 0.8921,
-      "box": [220, 50, 450, 380],
-      "notes": "Otomatis diubah menjadi busuk karena confidence segar di bawah 60%."
+      "condition": "segar",
+      "segar_confidence": 0.5521,
+      "busuk_confidence": 0.4479,
+      "box": [220, 50, 450, 380]
     }
   ],
   "summary": {
     "total_detected": 2,
-    "segar": 1,
-    "busuk": 1
+    "segar": 2,
+    "busuk": 0
   }
 }
 ```
 * *Note on Box Coordinates format:* Bounding boxes are formatted as `[ymin, xmin, ymax, xmax]` matching standard cropping pixel index offsets.
 
 ##### B. Successful Fallback Detection (200 OK - `return_image=false`)
-When no individual objects are identified, and the model classifies the whole image above the `40%` confidence threshold:
+When no individual objects are identified, and the model classifies the whole image:
 ```json
 {
   "status": "success",
@@ -139,9 +134,9 @@ When no individual objects are identified, and the model classifies the whole im
       "id": 1,
       "class": "jeruk",
       "condition": "segar",
-      "confidence": 0.7429,
-      "box": [0, 0, 1080, 1920],
-      "notes": "Classification normal (Fallback Mode)."
+      "segar_confidence": 0.7429,
+      "busuk_confidence": 0.2571,
+      "box": [0, 0, 1080, 1920]
     }
   ],
   "summary": {
@@ -152,20 +147,9 @@ When no individual objects are identified, and the model classifies the whole im
 }
 ```
 
-##### C. Fallback Cannot Determine (200 OK - `return_image=false`)
-When YOLOv8 finds zero fruits and the full-image classifier confidence is below `40%` (e.g. invalid object/kucing):
-```json
-{
-  "status": "cannot_determine",
-  "message": "The model cannot confidently determine the fruit type or freshness from this image.",
-  "confidence": 0.2354,
-  "raw_prediction": "pisang (busuk)"
-}
-```
-
-##### D. Image Visualization Mode (200 OK - `return_image=true`)
+##### C. Image Visualization Mode (200 OK - `return_image=true`)
 * **Content-Type:** `image/jpeg`
-* **Response Body:** Binary JPEG stream. The returned image has green boxes for `segar` fruits and red boxes for `busuk` fruits, alongside label text (e.g., `apel (segar 98%)`). If in fallback cannot determine state, the image is overlaid with the error string `"Cannot determine fruit type"`.
+* **Response Body:** Binary JPEG stream. The returned image has green boxes for `segar` fruits and red boxes for `busuk` fruits, alongside label text showing the class, simple condition, and its confidence (e.g., `apel (segar 98%)`).
 
 ---
 
